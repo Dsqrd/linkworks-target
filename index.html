@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b4ea2" />
+  <title>LinkWorks Target Controller</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#111a2b;
+      --panel2:#172238;
+      --text:#eef4ff;
+      --muted:#9fb0c9;
+      --line:#2a3a56;
+      --accent:#2f80ed;
+      --green:#20b26b;
+      --red:#d94d4d;
+      --yellow:#d8a52d;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      padding-bottom:100px;
+    }
+    header{
+      position:sticky; top:0; z-index:5;
+      padding:16px;
+      background:rgba(11,18,32,.96);
+      border-bottom:1px solid var(--line);
+    }
+    h1{font-size:20px;margin:0 0 4px}
+    .sub{font-size:13px;color:var(--muted)}
+    main{padding:12px;max-width:900px;margin:auto}
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:14px;
+      margin-bottom:12px;
+    }
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .grow{flex:1;min-width:0}
+    button{
+      min-height:44px;
+      border:0;
+      border-radius:10px;
+      padding:10px 14px;
+      font-size:16px;
+      font-weight:600;
+      color:white;
+      background:var(--accent);
+    }
+    button.secondary{background:#34445f}
+    button.green{background:var(--green)}
+    button.red{background:var(--red)}
+    button:disabled{opacity:.45}
+    input,select{
+      min-height:42px;
+      font-size:16px;
+      border-radius:9px;
+      border:1px solid var(--line);
+      background:var(--panel2);
+      color:var(--text);
+      padding:8px 10px;
+      width:100%;
+    }
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+    .status{
+      display:inline-flex;align-items:center;gap:7px;
+      font-size:14px;font-weight:600;
+    }
+    .dot{width:10px;height:10px;border-radius:50%;background:#67758a}
+    .dot.on{background:var(--green)}
+    .dot.warn{background:var(--yellow)}
+    .events{display:grid;gap:8px}
+    .event{
+      display:grid;
+      grid-template-columns:44px 78px 1fr 1fr 56px;
+      gap:8px;
+      align-items:end;
+      padding:10px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:var(--panel2);
+    }
+    .step{font-weight:700;align-self:center}
+    .switch{display:flex;justify-content:center;align-items:center;height:42px}
+    .switch input{width:24px;height:24px}
+    .toolbar{
+      position:fixed;
+      left:0;right:0;bottom:0;
+      display:grid;
+      grid-template-columns:1.5fr 1fr 1fr;
+      gap:8px;
+      padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+      background:rgba(11,18,32,.97);
+      border-top:1px solid var(--line);
+      z-index:10;
+    }
+    .toolbar button{width:100%}
+    .log{
+      max-height:220px; overflow:auto;
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+      font-size:12px;
+      white-space:pre-wrap;
+      background:#07101c;
+      border-radius:10px;
+      padding:10px;
+      border:1px solid var(--line);
+    }
+    .hint{font-size:12px;color:var(--muted);line-height:1.4}
+    .small{font-size:13px}
+    .saved-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .saved-list button{font-size:13px;min-height:38px}
+    @media(max-width:640px){
+      .event{
+        grid-template-columns:42px 70px 1fr 1fr 50px;
+        gap:6px;
+        padding:8px;
+      }
+      .event label{font-size:10px}
+      input,select{padding:7px 6px}
+      button{font-size:15px}
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>LinkWorks Target Controller</h1>
+  <div class="sub">iPhone → BLE → ESP32 → LoRa → Targets</div>
+</header>
+
+<main>
+  <section class="card">
+    <div class="row">
+      <div class="grow">
+        <div class="status">
+          <span id="connDot" class="dot"></span>
+          <span id="connText">Not connected</span>
+        </div>
+        <div id="deviceName" class="sub" style="margin-top:5px">No controller selected</div>
+      </div>
+      <button id="connectBtn">Connect</button>
+      <button id="disconnectBtn" class="secondary" disabled>Disconnect</button>
+    </div>
+    <div class="hint" style="margin-top:10px">
+      Open this page in <strong>Bluefy</strong>, not Safari. Tap Connect and choose the controller advertising the Nordic UART Service.
+    </div>
+  </section>
+
+  <section class="card">
+    <label for="courseName">Course name</label>
+    <input id="courseName" maxlength="24" value="Default 4 Target" />
+    <div class="row" style="margin-top:10px">
+      <button id="savePhoneBtn" class="secondary">Save on iPhone</button>
+      <button id="loadPhoneBtn" class="secondary">Load Saved</button>
+      <button id="clearBtn" class="secondary">Clear</button>
+      <button id="statusBtn" class="secondary" disabled>STATUS</button>
+      <button id="listBtn" class="secondary" disabled>LIST</button>
+    </div>
+    <div id="savedCourses" class="saved-list"></div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <div class="grow">
+        <strong>20-Step Sequence</strong>
+        <div class="hint">Each enabled row is one exposure. Reuse a target later to bring it back up.</div>
+      </div>
+    </div>
+    <div id="events" class="events" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <strong>Controller Log</strong>
+      <button id="clearLogBtn" class="secondary small">Clear Log</button>
+    </div>
+    <div id="log" class="log" style="margin-top:8px">Ready.</div>
+  </section>
+</main>
+
+<div class="toolbar">
+  <button id="uploadBtn" disabled>Upload Course</button>
+  <button id="runBtn" class="green" disabled>RUN</button>
+  <button id="stopBtn" class="red" disabled>STOP</button>
+</div>
+
+<script>
+(() => {
+  const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+  const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+  const TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+
+  let device = null;
+  let server = null;
+  let rxChar = null;
+  let txChar = null;
+  let connected = false;
+  let uploadBusy = false;
+
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const $ = id => document.getElementById(id);
+
+  const connectBtn = $('connectBtn');
+  const disconnectBtn = $('disconnectBtn');
+  const uploadBtn = $('uploadBtn');
+  const runBtn = $('runBtn');
+  const stopBtn = $('stopBtn');
+  const statusBtn = $('statusBtn');
+  const listBtn = $('listBtn');
+
+  function stamp(){
+    const d = new Date();
+    return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  }
+
+  function log(msg){
+    const box = $('log');
+    const line = `${stamp()}  ${msg}`;
+    box.textContent = box.textContent === 'Ready.' ? line : `${line}\n${box.textContent}`;
+  }
+
+  function setConnected(value){
+    connected = value;
+    $('connDot').className = 'dot' + (value ? ' on' : '');
+    $('connText').textContent = value ? 'Connected' : 'Not connected';
+    connectBtn.disabled = value || uploadBusy;
+    disconnectBtn.disabled = !value || uploadBusy;
+    uploadBtn.disabled = !value || uploadBusy;
+    runBtn.disabled = !value || uploadBusy;
+    stopBtn.disabled = !value;
+    statusBtn.disabled = !value || uploadBusy;
+    listBtn.disabled = !value || uploadBusy;
+  }
+
+  async function connect(){
+    try{
+      if (!navigator.bluetooth) {
+        alert('Web Bluetooth is not available here. Open this page in the Bluefy app on your iPhone.');
+        return;
+      }
+
+      log('Opening Bluetooth chooser...');
+
+      device = await navigator.bluetooth.requestDevice({
+        filters: [{services:[SERVICE]}],
+        optionalServices:[SERVICE]
+      });
+
+      $('deviceName').textContent = device.name || 'LinkWorks Controller';
+      device.addEventListener('gattserverdisconnected', onDisconnected);
+
+      log(`Connecting to ${device.name || 'controller'}...`);
+      server = await device.gatt.connect();
+
+      const service = await server.getPrimaryService(SERVICE);
+      rxChar = await service.getCharacteristic(RX);
+      txChar = await service.getCharacteristic(TX);
+
+      await txChar.startNotifications();
+      txChar.addEventListener('characteristicvaluechanged', onNotify);
+
+      setConnected(true);
+      log('BLE UART connected.');
+
+      await sleep(150);
+      await send('STATUS');
+    } catch(err){
+      log(`Connect error: ${err.message || err}`);
+      setConnected(false);
+    }
+  }
+
+  function onDisconnected(){
+    log('Controller disconnected.');
+    rxChar = null;
+    txChar = null;
+    server = null;
+    setConnected(false);
+  }
+
+  function disconnect(){
+    if (device?.gatt?.connected) device.gatt.disconnect();
+    else onDisconnected();
+  }
+
+  function onNotify(event){
+    const value = event.target.value;
+    const bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    const msg = decoder.decode(bytes).trim();
+    if (msg) log(`ESP32: ${msg}`);
+  }
+
+  async function send(command, quiet=false){
+    if (!connected || !rxChar) throw new Error('Controller is not connected');
+
+    const data = encoder.encode(command);
+
+    if (rxChar.writeValueWithResponse) {
+      await rxChar.writeValueWithResponse(data);
+    } else {
+      await rxChar.writeValue(data);
+    }
+
+    if (!quiet) log(`PHONE: ${command}`);
+  }
+
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+  function makeDefaultEvents(){
+    return Array.from({length:20}, (_,i) => ({
+      step:i+1,
+      target:(i%4)+1,
+      start:i<4 ? i+1 : 0,
+      duration:1,
+      enabled:i<4
+    }));
+  }
+
+  let events = makeDefaultEvents();
+
+  function renderEvents(){
+    const container = $('events');
+    container.innerHTML = '';
+
+    events.forEach((e, index) => {
+      const row = document.createElement('div');
+      row.className = 'event';
+      row.innerHTML = `
+        <div class="step">${e.step}</div>
+        <div>
+          <label>Target</label>
+          <select data-k="target">
+            <option value="1">T1</option>
+            <option value="2">T2</option>
+            <option value="3">T3</option>
+            <option value="4">T4</option>
+          </select>
+        </div>
+        <div>
+          <label>Start (s)</label>
+          <input data-k="start" type="number" min="0" step="0.01" inputmode="decimal">
+        </div>
+        <div>
+          <label>Duration (s)</label>
+          <input data-k="duration" type="number" min="0.05" step="0.01" inputmode="decimal">
+        </div>
+        <div>
+          <label>Use</label>
+          <div class="switch"><input data-k="enabled" type="checkbox"></div>
+        </div>
+      `;
+
+      const target = row.querySelector('[data-k="target"]');
+      const start = row.querySelector('[data-k="start"]');
+      const duration = row.querySelector('[data-k="duration"]');
+      const enabled = row.querySelector('[data-k="enabled"]');
+
+      target.value = String(e.target);
+      start.value = String(e.start);
+      duration.value = String(e.duration);
+      enabled.checked = e.enabled;
+
+      target.disabled = !e.enabled;
+      start.disabled = !e.enabled;
+      duration.disabled = !e.enabled;
+
+      target.addEventListener('change', () => e.target = Number(target.value));
+      start.addEventListener('input', () => e.start = Number(start.value || 0));
+      duration.addEventListener('input', () => e.duration = Number(duration.value || 0));
+      enabled.addEventListener('change', () => {
+        e.enabled = enabled.checked;
+        target.disabled = !e.enabled;
+        start.disabled = !e.enabled;
+        duration.disabled = !e.enabled;
+      });
+
+      container.appendChild(row);
+    });
+  }
+
+  function validate(){
+    const enabled = events.filter(e => e.enabled);
+    if (!enabled.length) throw new Error('Enable at least one step.');
+
+    for (const e of enabled){
+      if (!Number.isFinite(e.start) || e.start < 0) throw new Error(`Step ${e.step}: invalid start time.`);
+      if (!Number.isFinite(e.duration) || e.duration < 0.05) throw new Error(`Step ${e.step}: duration must be at least 0.05 s.`);
+      if (e.target < 1 || e.target > 4) throw new Error(`Step ${e.step}: invalid target.`);
+    }
+    return enabled;
+  }
+
+  async function uploadCourse(){
+    try{
+      uploadBusy = true;
+      setConnected(connected);
+
+      const enabled = validate();
+      const name = ($('courseName').value.trim() || 'Untitled').slice(0,24);
+
+      await send('CLEAR');
+      await sleep(50);
+      await send(`NAME,${name}`);
+
+      for (const e of enabled){
+        const startMs = Math.round(e.start * 1000);
+        const durationMs = Math.round(e.duration * 1000);
+        const cmd = `E,${e.step},${e.target},${startMs},${durationMs},1`;
+        await send(cmd, true);
+        log(`Uploaded step ${e.step}: T${e.target} @ ${e.start}s for ${e.duration}s`);
+        await sleep(50);
+      }
+
+      await send('SAVE');
+      await sleep(100);
+      await send('STATUS');
+
+      alert('Course uploaded and saved in the ESP32.');
+    } catch(err){
+      log(`Upload error: ${err.message || err}`);
+      alert(err.message || String(err));
+    } finally {
+      uploadBusy = false;
+      setConnected(connected);
+    }
+  }
+
+  function currentCourse(){
+    return {
+      name: $('courseName').value.trim() || 'Untitled',
+      events: events.map(e => ({...e}))
+    };
+  }
+
+  function saveOnPhone(){
+    const course = currentCourse();
+    const all = JSON.parse(localStorage.getItem('linkworks_courses') || '{}');
+    all[course.name] = course;
+    localStorage.setItem('linkworks_courses', JSON.stringify(all));
+    renderSaved();
+    alert(`Saved "${course.name}" in Bluefy on this iPhone.`);
+  }
+
+  function renderSaved(){
+    const box = $('savedCourses');
+    box.innerHTML = '';
+    const all = JSON.parse(localStorage.getItem('linkworks_courses') || '{}');
+
+    Object.keys(all).sort().forEach(name => {
+      const b = document.createElement('button');
+      b.className = 'secondary';
+      b.textContent = name;
+      b.addEventListener('click', () => {
+        const c = all[name];
+        $('courseName').value = c.name || name;
+        events = Array.isArray(c.events) ? c.events.map((e,i)=>({
+          step:i+1,
+          target:Number(e.target||1),
+          start:Number(e.start||0),
+          duration:Number(e.duration||1),
+          enabled:!!e.enabled
+        })) : makeDefaultEvents();
+
+        while(events.length < 20){
+          const i=events.length;
+          events.push({step:i+1,target:(i%4)+1,start:0,duration:1,enabled:false});
+        }
+        events = events.slice(0,20);
+        renderEvents();
+        log(`Loaded saved course "${name}".`);
+      });
+      box.appendChild(b);
+    });
+
+    if (!Object.keys(all).length) {
+      box.innerHTML = '<span class="hint">No saved courses yet.</span>';
+    }
+  }
+
+  function clearEditor(){
+    $('courseName').value = 'Untitled';
+    events = makeDefaultEvents().map(e => ({...e, start:0, enabled:false}));
+    renderEvents();
+  }
+
+  connectBtn.addEventListener('click', connect);
+  disconnectBtn.addEventListener('click', disconnect);
+  uploadBtn.addEventListener('click', uploadCourse);
+  runBtn.addEventListener('click', () => send('RUN').catch(e=>alert(e.message)));
+  stopBtn.addEventListener('click', () => send('STOP').catch(e=>alert(e.message)));
+  statusBtn.addEventListener('click', () => send('STATUS').catch(e=>alert(e.message)));
+  listBtn.addEventListener('click', () => send('LIST').catch(e=>alert(e.message)));
+  $('savePhoneBtn').addEventListener('click', saveOnPhone);
+  $('loadPhoneBtn').addEventListener('click', renderSaved);
+  $('clearBtn').addEventListener('click', clearEditor);
+  $('clearLogBtn').addEventListener('click', () => $('log').textContent = '');
+
+  renderEvents();
+  renderSaved();
+  setConnected(false);
+})();
+</script>
+</body>
+</html>
